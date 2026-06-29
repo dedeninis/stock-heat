@@ -114,6 +114,30 @@ def _extract_generic(tree: HTMLParser) -> str:
     return _clean_text("\n".join(paragraphs))
 
 
+def _extract_published(tree: HTMLParser) -> datetime | None:
+    """從常見 meta/time 標籤抽取發布時間（ISO 8601）。"""
+    candidates = (
+        ("meta[property='article:published_time']", "content"),
+        ("meta[name='article:published_time']", "content"),
+        ("meta[property='og:article:published_time']", "content"),
+        ("meta[itemprop='datePublished']", "content"),
+        ("time[datetime]", "datetime"),
+    )
+    for sel, attr in candidates:
+        node = tree.css_first(sel)
+        if node is None:
+            continue
+        value = node.attributes.get(attr)
+        if not value:
+            continue
+        try:
+            dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt
+    return None
+
+
 def _extract_title(tree: HTMLParser, fallback: str) -> str:
     for sel in ("h1", "meta[property='og:title']", "title"):
         node = tree.css_first(sel)
@@ -155,6 +179,6 @@ def parse_article(html: str, *, selector: str | None = None,
         title=title,
         content=content,
         author=author,
-        published_at=None,
+        published_at=_extract_published(tree),
         quality=quality,
     )

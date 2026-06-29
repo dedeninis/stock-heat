@@ -30,6 +30,7 @@ Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL + TimescaleDB · 
 - [x] REST API：FastAPI 榜單 / 個股 / 搜尋 / 健康（`stock_heat/api/`，含測試）
 - [x] 前端儀表板：單檔 HTML/JS（`stock_heat/api/static/`，服務於 `/app`）
 - [x] 資料庫落地：SQLAlchemy + SQLite（`stock_heat/db/`，含 ingestion 與 DB-backed store）
+- [x] 排程自動化：APScheduler 定時擷取 + 重算（`stock_heat/jobs.py`、`stock_heat/scheduler.py`）
 
 ## 專案結構（規劃）
 
@@ -79,3 +80,17 @@ STOCKHEAT_USE_DB=1 uvicorn stock_heat.api.main:app   # 然後開 /app/
 - 讀取：`stock_heat/db/repository.py` 的 `SqlHeatStore`，回傳與記憶體 store 相同的資料結構。
 - 切換 PostgreSQL + TimescaleDB：改 `STOCKHEAT_DATABASE_URL`，並把
   `ticker_heat_timeseries` 轉為 hypertable，模型不變。
+
+## 排程自動化
+
+讓系統自動運轉：依各來源 `interval` 定時擷取、每 15 分鐘盤中重算、收盤後日線重算。
+
+```bash
+python -m stock_heat.scheduler          # 啟動排程器（會持續執行）
+```
+
+- 任務函式：`stock_heat/jobs.py`
+  - `collect_source` / `collect_and_ingest`：以 DB 既有 `external_id` 去重，寫入並記錄 `collector_runs`。
+  - `recompute_today`：重算當日各個股溫度與升溫事件。
+- 排程器：`stock_heat/scheduler.py`（APScheduler），`build_scheduler` 註冊三類任務。
+- 三個進程可分開部署：`api`（uvicorn）、`scheduler`（本檔）、未來的 `worker`（佇列消費）。

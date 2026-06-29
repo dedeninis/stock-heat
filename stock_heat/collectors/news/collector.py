@@ -69,6 +69,8 @@ class NewsCollector(BaseCollector):
         self._fetch_text = fetcher or _default_fetcher()
         self._seen = seen or (lambda _u: False)
         self._mark_seen = mark_seen or (lambda _u: None)
+        # discover 期間自 RSS 取得的發布時間，供 fetch 補上（文章頁常缺日期）
+        self._pub_dates: dict[str, object] = {}
 
     # ------------------------------------------------------------------ discover
     def discover(self) -> list[str]:
@@ -82,6 +84,9 @@ class NewsCollector(BaseCollector):
 
         if self.config.rss:
             entries = parse_rss(raw)
+            for e in entries:
+                if e.published_at is not None:
+                    self._pub_dates[normalize_url(e.url)] = e.published_at
             links: Iterable[str] = (e.url for e in entries)
         else:
             # 列表頁：交由 parser 的通用連結抽取（此處先取 RSS 路徑為主）
@@ -112,6 +117,8 @@ class NewsCollector(BaseCollector):
         )
         norm = normalize_url(url)
         self._mark_seen(norm)
+        # 文章頁常缺發布時間，退回 discover 階段自 RSS 取得的日期
+        published_at = article.published_at or self._pub_dates.get(norm)
         return RawDocument(
             source=self.source,
             source_type=self.source_type,
@@ -120,7 +127,7 @@ class NewsCollector(BaseCollector):
             title=article.title,
             content=article.content,
             author=article.author,
-            published_at=article.published_at,
+            published_at=published_at,
             content_quality=article.quality,
             raw_meta={
                 "weight": self.config.weight,

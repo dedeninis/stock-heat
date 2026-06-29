@@ -53,3 +53,12 @@ def test_parse_article_fallback_when_selector_misses():
     # selector 命中不足 → 退場到通用抽取，仍取得內文，標記為 partial
     assert "管理層對下半年展望表示樂觀" in art.content
     assert art.quality == "partial"
+
+
+def test_parse_article_extracts_published_meta():
+    html = """<html><head><title>t</title>
+      <meta property="article:published_time" content="2026-06-29T08:30:00+08:00"></head>
+      <body><main><article><h1>標題</h1><p>內文段落足夠長以通過門檻檢查的測試內容。</p></article></main></body></html>"""
+    art = parse_article(html, selector="main article")
+    assert art.published_at is not None
+    assert art.published_at.year == 2026 and art.published_at.month == 6
