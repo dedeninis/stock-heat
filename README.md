@@ -28,7 +28,8 @@ Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL + TimescaleDB · 
 - [x] 處理層：個股辨識 + 情緒分析（`stock_heat/processing/`，含測試）
 - [x] 溫度計算：Heat Score / 情緒聚合 / 升溫率與異常（`stock_heat/scoring/`，含測試）
 - [x] REST API：FastAPI 榜單 / 個股 / 搜尋 / 健康（`stock_heat/api/`，含測試）
-- [ ] 前端儀表板
+- [x] 前端儀表板：單檔 HTML/JS（`stock_heat/api/static/`，服務於 `/app`）
+- [x] 資料庫落地：SQLAlchemy + SQLite（`stock_heat/db/`，含 ingestion 與 DB-backed store）
 
 ## 專案結構（規劃）
 
@@ -58,5 +59,23 @@ uvicorn stock_heat.api.main:app --reload
 | GET | `/api/v1/search?q=` | 以名稱／別名／代號搜尋個股 |
 | GET | `/api/v1/health` | 服務健康 |
 
-> 目前資料為記憶體示範資料（`stock_heat/api/seed.py`）。`HeatStore` 介面已抽象化，
-> 之後接資料庫（docs/05）只需替換 store 實作，不動路由。
+> 預設以記憶體示範資料（`stock_heat/api/seed.py`）。設定 `STOCKHEAT_USE_DB=1`
+> 或 `STOCKHEAT_DATABASE_URL` 即改用資料庫；`HeatStore` 介面已抽象化，路由不需改動。
+
+## 資料庫（SQLite 優先）
+
+```bash
+# 1) 以真實 pipeline（擷取→處理→溫度）產生並寫入示範資料庫
+python -m scripts.seed_db
+
+# 2) 啟動 API，改讀資料庫
+STOCKHEAT_USE_DB=1 uvicorn stock_heat.api.main:app   # 然後開 /app/
+```
+
+- 綱要：`stock_heat/db/models.py`（docs/05 的 8 張表），MVP 以 `init_db` 的 `create_all`
+  建立；正式環境改用 Alembic migration。
+- 寫入：`stock_heat/db/ingest.py`（`ingest_documents` 冪等寫入 raw/processed/mentions；
+  `recompute_heat_for_day` 重算每日溫度與升溫事件）。
+- 讀取：`stock_heat/db/repository.py` 的 `SqlHeatStore`，回傳與記憶體 store 相同的資料結構。
+- 切換 PostgreSQL + TimescaleDB：改 `STOCKHEAT_DATABASE_URL`，並把
+  `ticker_heat_timeseries` 轉為 hypertable，模型不變。
