@@ -11,6 +11,7 @@
 
 - **[交接與架構總覽（HANDOVER.md）](HANDOVER.md)** — 一頁掌握全貌、怎麼跑、設計接縫與待辦。
 - **[實際測試指南（TESTING.md）](TESTING.md)** — 親手把系統跑起來、看到真實溫度榜的步驟。
+- **[部署指南（DEPLOY.md）](DEPLOY.md)** — 前端上 GitHub Pages + 後端部署（Render/Docker）。
 
 ### 設計文件
 

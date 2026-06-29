@@ -105,12 +105,22 @@
 </main>
 
 <div class="footnote">
-  資料為記憶體示範資料（MVP 階段）。本系統僅提供資訊指標，不構成投資建議。
+  本系統僅提供資訊指標，不構成投資建議。
 </div>
 
+<script src="config.js"></script>
 <script>
-const API = "/api/v1";
+// API 基底：同源服務時留空（相對路徑）；GitHub Pages 等跨源部署時由 config.js 設定
+const API_BASE = (window.STOCK_HEAT_API_BASE || "").replace(/\/$/, "");
+const API = API_BASE + "/api/v1";
 let rankMode = "desc";
+
+// 以 file:// 直接開啟時 fetch 相對網址會失敗，提早給清楚指引
+if (!API_BASE && window.location.protocol === "file:") {
+  document.getElementById("rankArea").innerHTML =
+    '<div class="empty">請透過執行中的伺服器開啟：<br>http://127.0.0.1:8000/app/<br>' +
+    '（勿直接雙擊 index.html）</div>';
+}
 
 async function j(url) {
   const r = await fetch(url);

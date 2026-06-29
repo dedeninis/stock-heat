@@ -1,0 +1,46 @@
+name: Deploy dashboard to Pages
+
+# 手動觸發：先在 repo 設定好 Pages（Source = GitHub Actions）與變數 API_BASE 再執行。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 組裝靜態網站（注入後端 API 網址）
+        env:
+          API_BASE: ${{ vars.API_BASE }}
+        run: |
+          mkdir -p _site
+          cp stock_heat/api/static/index.html _site/index.html
+          echo "window.STOCK_HEAT_API_BASE=\"${API_BASE}\";" > _site/config.js
+          echo "--- _site/config.js ---"; cat _site/config.js
+          if [ -z "${API_BASE}" ]; then
+            echo "::warning::未設定 repo 變數 API_BASE，儀表板將無法連到後端 API"
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

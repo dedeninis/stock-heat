@@ -116,3 +116,15 @@ def test_dashboard_served(client):
 
 def test_root_advertises_dashboard(client):
     assert client.get("/").json()["dashboard"] == "/app/"
+
+
+def test_cors_header_present(client):
+    r = client.get("/api/v1/health", headers={"Origin": "https://example.github.io"})
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "*"
+
+
+def test_dashboard_config_js_served(client):
+    r = client.get("/app/config.js")
+    assert r.status_code == 200
+    assert "STOCK_HEAT_API_BASE" in r.text
