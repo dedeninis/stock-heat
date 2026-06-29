@@ -71,7 +71,7 @@ python -m stock_heat.scheduler           # 定時擷取 + 重算
 
 ## 7. 已知限制 / 待辦（皆非 MVP 必需）
 
-1. **來源未對真站台驗證**：`config/sources.yaml` 的 RSS/selector 為設計值，擷取邏輯完整但以 fixture 測試。接真站台前需確認 robots 與授權合規。
+1. **真實來源已接線並驗證**（2026-06-29）：中央社、自由時報財經、鉅亨網的 RSS/selector 已對真站台驗證可用，真實 collect→處理→溫度 跑通（見 `tests/test_live_sources.py`，需 `STOCKHEAT_LIVE_TEST=1`）。經濟日報（udn）內文為 JS 渲染、靜態抓取不完整，已停用，待改 headless。上線前仍請再確認各站 robots 與授權。
 2. **`is_repost` 永遠 False**：轉載判定需跨文件 SimHash 比對（SimHash 已算好存於 `raw_documents.simhash`，待接）。
 3. **綱要用 `create_all`**：正式環境應改 Alembic migration（docs/05 §6）。
 4. **個股字典僅 15 檔示範**：上線需匯入完整上市櫃清單。

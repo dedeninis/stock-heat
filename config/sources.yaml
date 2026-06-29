@@ -1,26 +1,40 @@
 # 資料來源設定（docs/03 §4.2）
-# selector 與 rss URL 需以實際頁面驗證；設計上以「可設定」為原則。
+# 以下 RSS/selector 已對真實站台驗證（2026-06-29）。
+# 合規：僅讀取公開 RSS 與文章頁、低頻率、可識別 UA；上線前請再確認各站 robots 與授權。
 news:
-  - id: news.cnyes
-    name: 鉅亨網
-    rss: https://news.cnyes.com/rss/v1/news/category/tw_stock
-    article_selector: "main article"
-    weight: 1.0
-    interval: 300
-    enabled: true
-
   - id: news.cna
-    name: 中央社財經
+    name: 中央社
     rss: https://feeds.feedburner.com/rsscna/finance
     article_selector: "div.paragraph"
     weight: 0.9
     interval: 600
     enabled: true
+    max_per_run: 8
+
+  - id: news.ltn
+    name: 自由時報財經
+    rss: https://news.ltn.com.tw/rss/business.xml
+    article_selector: "div.text"
+    weight: 0.8
+    interval: 600
+    enabled: true
+    max_per_run: 8
+
+  - id: news.cnyes
+    name: 鉅亨網
+    rss: https://news.cnyes.com/rss/v1/news/category/tw_stock
+    # 內文容器為動態 hash class（易隨改版失效），改用通用退場抽取（穩定）
+    article_selector: null
+    weight: 1.0
+    interval: 300
+    enabled: true
+    max_per_run: 8
 
   - id: news.udn_money
     name: 經濟日報
-    list_url: https://money.udn.com/money/cate/5590
-    article_selector: "section#article_body"
+    rss: https://money.udn.com/rssfeed/news/1001/5591?ch=money
+    article_selector: "#article_body"
     weight: 1.0
     interval: 300
-    enabled: false   # 列表頁解析待實作驗證，預設停用
+    enabled: false   # 內文為 JS 渲染，靜態抓取不完整，待改用 headless 後再啟用
+    max_per_run: 8
