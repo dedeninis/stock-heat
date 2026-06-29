@@ -1,5 +1,7 @@
 # Stock Heat — 個股網路溫度系統
 
+[![CI](https://github.com/dedeninis/stock-heat/actions/workflows/ci.yml/badge.svg)](https://github.com/dedeninis/stock-heat/actions/workflows/ci.yml)
+
 把分散在**新聞、論壇、社群、搜尋趨勢**上的討論熱度與情緒，量化成每檔個股每天（與盤中）的
 **網路溫度分數（Heat Score, 0–100）** 與 **情緒分數（-1 ~ +1）**，協助觀察哪些個股正在「升溫」、情緒偏多還偏空。
 

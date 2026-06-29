@@ -91,7 +91,6 @@ class SqlHeatStore:
 
     def health_components(self) -> list[tuple[str, str, str | None]]:
         with self._session() as s:
-            n_ticks = s.scalar(select(m.Ticker).order_by(m.Ticker.ticker).limit(1))
             n_pts = s.scalar(select(m.TickerHeatTimeseries.ts)
                              .order_by(m.TickerHeatTimeseries.ts.desc()).limit(1))
         return [
