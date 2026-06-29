@@ -16,6 +16,8 @@ dependencies = [
     "selectolax>=0.3.21",
     "pyyaml>=6.0",
     "tenacity>=8.2",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
 ]
 
 [project.optional-dependencies]

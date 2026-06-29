@@ -27,7 +27,7 @@ Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL + TimescaleDB · 
 - [x] 財經新聞擷取模組（`stock_heat/collectors/news/`，含測試）
 - [x] 處理層：個股辨識 + 情緒分析（`stock_heat/processing/`，含測試）
 - [x] 溫度計算：Heat Score / 情緒聚合 / 升溫率與異常（`stock_heat/scoring/`，含測試）
-- [ ] REST API
+- [x] REST API：FastAPI 榜單 / 個股 / 搜尋 / 健康（`stock_heat/api/`，含測試）
 - [ ] 前端儀表板
 
 ## 專案結構（規劃）
@@ -40,4 +40,23 @@ Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL + TimescaleDB · 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 pytest
+
+# 啟動 API（MVP 階段以記憶體示範資料供查）
+uvicorn stock_heat.api.main:app --reload
+# 互動式文件： http://127.0.0.1:8000/docs
 ```
+
+## API 端點（v1）
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | `/api/v1/rankings/heat` | 溫度榜（`date` / `order` / `limit` / `sentiment`） |
+| GET | `/api/v1/rankings/surging` | 異常升溫榜 |
+| GET | `/api/v1/tickers/{ticker}` | 個股摘要（含近 7 日趨勢） |
+| GET | `/api/v1/tickers/{ticker}/timeseries` | 溫度時序（`from` / `to` / `granularity`） |
+| GET | `/api/v1/tickers/{ticker}/documents` | 關聯新聞（只給標題與來源連結） |
+| GET | `/api/v1/search?q=` | 以名稱／別名／代號搜尋個股 |
+| GET | `/api/v1/health` | 服務健康 |
+
+> 目前資料為記憶體示範資料（`stock_heat/api/seed.py`）。`HeatStore` 介面已抽象化，
+> 之後接資料庫（docs/05）只需替換 store 實作，不動路由。
