@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>個股網路溫度系統 · Stock Heat</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a2029; --panel-2: #232b36; --line: #2e3a48;
+    --text: #e6edf3; --muted: #8b98a8; --accent: #4aa8ff;
+    --hot: #ff5a52; --cold: #3a9bdc; --neutral: #7a8696;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+    background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  header h1 .flame { color: var(--hot); }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .search { margin-left: auto; position: relative; }
+  .search input {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    padding: 8px 12px; border-radius: 8px; width: 220px; outline: none;
+  }
+  .search input:focus { border-color: var(--accent); }
+  .search-results {
+    position: absolute; top: 40px; right: 0; width: 260px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; overflow: hidden; z-index: 10;
+    display: none;
+  }
+  .search-results div { padding: 8px 12px; cursor: pointer; }
+  .search-results div:hover { background: var(--panel); }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 22px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); font-weight: 600;
+             text-transform: uppercase; letter-spacing: .04em; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button {
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+  }
+  .tabs button.active { background: var(--accent); color: #06121f; border-color: var(--accent); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .rank { color: var(--muted); width: 28px; }
+  .ticker-code { color: var(--accent); font-weight: 600; }
+  .heatbar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pos { background: rgba(255,90,82,.16); color: var(--hot); }
+  .neg { background: rgba(58,155,220,.16); color: var(--cold); }
+  .neu { background: rgba(122,134,150,.16); color: var(--neutral); }
+  .surge-flag { color: var(--hot); font-size: 11px; margin-left: 6px; }
+  .detail-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .detail-head .name { font-size: 20px; font-weight: 700; }
+  .detail-metrics { display: flex; gap: 22px; margin: 12px 0; flex-wrap: wrap; }
+  .metric .label { color: var(--muted); font-size: 12px; }
+  .metric .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .news { list-style: none; padding: 0; margin: 8px 0 0; }
+  .news li { padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .news a { color: var(--text); text-decoration: none; }
+  .news a:hover { color: var(--accent); }
+  .news .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+  .chart-wrap { margin-top: 4px; }
+  .footnote { color: var(--muted); font-size: 11px; padding: 0 22px 22px; }
+  text { fill: var(--muted); font-size: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="flame">🔥</span> 個股網路溫度系統</h1>
+  <span class="sub">Stock Heat · 網路討論熱度與情緒</span>
+  <div class="search">
+    <input id="searchBox" type="text" placeholder="搜尋個股 名稱/代號…" autocomplete="off" />
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>溫度榜</h2>
+    <div class="tabs" id="rankTabs">
+      <button data-mode="desc" class="active">升溫榜</button>
+      <button data-mode="asc">降溫榜</button>
+      <button data-mode="surge">異常升溫</button>
+    </div>
+    <div id="rankArea"><div class="empty">載入中…</div></div>
+  </section>
+
+  <section class="card">
+    <h2>個股詳情</h2>
+    <div id="detailArea"><div class="empty">點選左側個股查看溫度走勢與相關新聞</div></div>
+  </section>
+</main>
+
+<div class="footnote">
+  資料為記憶體示範資料（MVP 階段）。本系統僅提供資訊指標，不構成投資建議。
+</div>
+
+<script>
+const API = "/api/v1";
+let rankMode = "desc";
+
+async function j(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + " -> " + r.status);
+  return r.json();
+}
+
+function sentimentPill(s) {
+  const cls = s > 0.15 ? "pos" : s < -0.15 ? "neg" : "neu";
+  const label = s > 0.15 ? "偏多" : s < -0.15 ? "偏空" : "中性";
+  return `<span class="pill ${cls}">${label} ${s >= 0 ? "+" : ""}${s.toFixed(2)}</span>`;
+}
+function heatColor(h) {
+  // 0 冷藍 -> 100 暖紅
+  const t = Math.max(0, Math.min(100, h)) / 100;
+  const r = Math.round(58 + t * (255 - 58));
+  const g = Math.round(155 - t * (155 - 90));
+  const b = Math.round(220 - t * (220 - 82));
+  return `rgb(${r},${g},${b})`;
+}
+
+async function loadRankings() {
+  const area = document.getElementById("rankArea");
+  area.innerHTML = '<div class="empty">載入中…</div>';
+  try {
+    if (rankMode === "surge") {
+      const data = await j(`${API}/rankings/surging`);
+      if (!data.items.length) { area.innerHTML = '<div class="empty">目前無異常升溫個股</div>'; return; }
+      area.innerHTML = renderSurge(data.items);
+    } else {
+      const data = await j(`${API}/rankings/heat?order=${rankMode}&limit=50`);
+      if (!data.items.length) { area.innerHTML = '<div class="empty">無資料</div>'; return; }
+      area.innerHTML = renderHeatTable(data.items);
+    }
+    area.querySelectorAll("tr[data-ticker]").forEach(tr =>
+      tr.addEventListener("click", () => loadDetail(tr.dataset.ticker)));
+  } catch (e) { area.innerHTML = `<div class="empty">載入失敗：${e.message}</div>`; }
+}
+
+function renderHeatTable(items) {
+  const rows = items.map(it => `
+    <tr data-ticker="${it.ticker}">
+      <td class="rank">${it.rank}</td>
+      <td><span class="ticker-code">${it.ticker}</span> ${it.name}</td>
+      <td class="num">
+        <span class="heatbar" style="width:${Math.max(4, it.heat_score)}px;background:${heatColor(it.heat_score)}"></span>
+        ${it.heat_score.toFixed(1)}
+      </td>
+      <td class="num">${sentimentPill(it.sentiment)}</td>
+      <td class="num">${it.heat_velocity >= 0 ? "+" : ""}${(it.heat_velocity*100).toFixed(0)}%</td>
+    </tr>`).join("");
+  return `<table><thead><tr><th></th><th>個股</th><th class="num">溫度</th>
+    <th class="num">情緒</th><th class="num">升溫率</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderSurge(items) {
+  const rows = items.map(it => `
+    <tr data-ticker="${it.ticker}">
+      <td><span class="ticker-code">${it.ticker}</span> ${it.name}<span class="surge-flag">⚡升溫</span></td>
+      <td class="num">${it.heat_score.toFixed(1)}</td>
+      <td class="num">+${(it.heat_velocity*100).toFixed(0)}%</td>
+    </tr>`).join("");
+  return `<table><thead><tr><th>個股</th><th class="num">溫度</th>
+    <th class="num">升溫率</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadDetail(ticker) {
+  const area = document.getElementById("detailArea");
+  area.innerHTML = '<div class="empty">載入中…</div>';
+  try {
+    const [sum, ts, docs] = await Promise.all([
+      j(`${API}/tickers/${ticker}`),
+      j(`${API}/tickers/${ticker}/timeseries`),
+      j(`${API}/tickers/${ticker}/documents`),
+    ]);
+    area.innerHTML = `
+      <div class="detail-head">
+        <span class="name">${sum.name}</span>
+        <span class="ticker-code">${sum.ticker}</span>
+        <span class="sub" style="color:var(--muted)">${sum.industry}</span>
+        ${sum.is_surge ? '<span class="surge-flag">⚡異常升溫</span>' : ''}
+      </div>
+      <div class="detail-metrics">
+        <div class="metric"><div class="label">網路溫度</div>
+          <div class="value" style="color:${heatColor(sum.heat_score)}">${sum.heat_score.toFixed(1)}</div></div>
+        <div class="metric"><div class="label">情緒</div><div class="value">${sentimentPill(sum.sentiment)}</div></div>
+        <div class="metric"><div class="label">升溫率</div>
+          <div class="value">${sum.heat_velocity>=0?"+":""}${(sum.heat_velocity*100).toFixed(0)}%</div></div>
+        <div class="metric"><div class="label">聲量</div><div class="value">${sum.volume}</div></div>
+      </div>
+      <div class="chart-wrap">${lineChart(ts.points)}</div>
+      <h2 style="margin-top:18px">相關新聞</h2>
+      ${renderNews(docs.items)}`;
+  } catch (e) { area.innerHTML = `<div class="empty">載入失敗：${e.message}</div>`; }
+}
+
+function lineChart(points) {
+  if (!points.length) return '<div class="empty">無時序資料</div>';
+  const W = 460, H = 160, pad = 28;
+  const n = points.length;
+  const xs = i => pad + (W - pad*2) * (n === 1 ? 0.5 : i/(n-1));
+  const ys = v => H - pad - (H - pad*2) * (Math.max(0,Math.min(100,v))/100);
+  const line = points.map((p,i) => `${xs(i).toFixed(1)},${ys(p.heat_score).toFixed(1)}`).join(" ");
+  const area = `${pad},${H-pad} ${line} ${(W-pad)},${H-pad}`;
+  const grid = [0,25,50,75,100].map(v =>
+    `<line x1="${pad}" y1="${ys(v)}" x2="${W-pad}" y2="${ys(v)}" stroke="var(--line)" stroke-width="1"/>
+     <text x="2" y="${ys(v)+3}">${v}</text>`).join("");
+  const dots = points.map((p,i) =>
+    `<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.heat_score).toFixed(1)}" r="2.5" fill="${heatColor(p.heat_score)}">
+       <title>${p.ts}　溫度 ${p.heat_score.toFixed(1)}　情緒 ${p.sentiment.toFixed(2)}</title></circle>`).join("");
+  const labels = `<text x="${pad}" y="${H-8}">${points[0].ts.slice(5)}</text>
+                  <text x="${W-pad-24}" y="${H-8}">${points[n-1].ts.slice(5)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">
+    ${grid}
+    <polyline points="${area}" fill="rgba(255,90,82,.08)" stroke="none"/>
+    <polyline points="${line}" fill="none" stroke="var(--hot)" stroke-width="2"/>
+    ${dots}${labels}</svg>`;
+}
+
+function renderNews(items) {
+  if (!items.length) return '<div class="empty">尚無相關新聞</div>';
+  return '<ul class="news">' + items.map(d => `
+    <li><a href="${d.url}" target="_blank" rel="noopener">${d.title}</a>
+      <div class="meta">${d.source_name} · ${sentimentPill(d.ticker_sentiment)}
+        · 信心 ${(d.confidence*100).toFixed(0)}%</div></li>`).join("") + '</ul>';
+}
+
+// 搜尋
+const box = document.getElementById("searchBox");
+const results = document.getElementById("searchResults");
+let searchTimer;
+box.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  const q = box.value.trim();
+  if (!q) { results.style.display = "none"; return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const data = await j(`${API}/search?q=${encodeURIComponent(q)}`);
+      if (!data.items.length) { results.style.display = "none"; return; }
+      results.innerHTML = data.items.map(it =>
+        `<div data-ticker="${it.ticker}"><span class="ticker-code">${it.ticker}</span> ${it.name}
+          <span style="color:var(--muted)">· ${it.industry}</span></div>`).join("");
+      results.style.display = "block";
+      results.querySelectorAll("div[data-ticker]").forEach(d =>
+        d.addEventListener("click", () => {
+          loadDetail(d.dataset.ticker); results.style.display = "none"; box.value = "";
+        }));
+    } catch { results.style.display = "none"; }
+  }, 200);
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".search")) results.style.display = "none";
+});
+
+// 榜單切換
+document.getElementById("rankTabs").addEventListener("click", e => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  document.querySelectorAll("#rankTabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  rankMode = btn.dataset.mode; loadRankings();
+});
+
+loadRankings();
+</script>
+</body>
+</html>

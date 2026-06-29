@@ -104,3 +104,15 @@ def test_health_ok(client):
     body = client.get("/api/v1/health").json()
     assert body["status"] == "ok"
     assert any(c["name"] == "store" for c in body["components"])
+
+
+def test_dashboard_served(client):
+    r = client.get("/app/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "個股網路溫度系統" in r.text
+    assert "loadRankings" in r.text
+
+
+def test_root_advertises_dashboard(client):
+    assert client.get("/").json()["dashboard"] == "/app/"

@@ -8,10 +8,15 @@ MVP 階段以記憶體示範資料供查（見 api/seed.py）；之後換 DB 版
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from .routers import meta, rankings, tickers
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Stock Heat API",
@@ -23,6 +28,9 @@ app.include_router(rankings.router)
 app.include_router(tickers.router)
 app.include_router(meta.router)
 
+# 單檔儀表板（docs/07）：與 API 同源，免 CORS。掛在 /app/。
+app.mount("/app", StaticFiles(directory=str(_STATIC_DIR), html=True), name="dashboard")
+
 
 @app.get("/", tags=["meta"])
 def root() -> JSONResponse:
@@ -30,6 +38,7 @@ def root() -> JSONResponse:
         "name": "stock-heat",
         "version": app.version,
         "docs": "/docs",
+        "dashboard": "/app/",
         "endpoints": [
             "/api/v1/rankings/heat",
             "/api/v1/rankings/surging",
