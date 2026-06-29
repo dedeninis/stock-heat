@@ -12,5 +12,6 @@ __pycache__
 tests
 docs
 *.md
+!README.md
 node_modules
 .scratch*
