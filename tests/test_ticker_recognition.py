@@ -45,3 +45,22 @@ def test_multiple_tickers_in_one_text():
 
 def test_empty_text_returns_nothing():
     assert recognize_tickers("", DICT) == []
+
+
+def test_common_word_name_needs_context():
+    # 「世界」(5347)、「全國」(9937) 為同名常用詞，無股市上下文時不應誤判為個股
+    res = _tickers("這項議題舉世界各國都在關注，全國民眾都相當重視。")
+    assert "5347" not in res
+    assert "9937" not in res
+
+
+def test_common_word_name_recognized_with_context():
+    # 同樣的短名稱，配上代號與股市上下文即應辨識
+    res = _tickers("世界（5347）今日股價走高，外資買超。")
+    assert "5347" in res
+
+
+def test_two_char_name_with_stock_context():
+    # 二字正式名（台塑 1301）在有股市上下文時仍可辨識
+    res = _tickers("台塑今日股價走高，法人買超。")
+    assert "1301" in res

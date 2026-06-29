@@ -74,8 +74,12 @@ python -m stock_heat.scheduler           # 定時擷取 + 重算
 1. **真實來源已接線並驗證**（2026-06-29）：中央社、自由時報財經、鉅亨網的 RSS/selector 已對真站台驗證可用，真實 collect→處理→溫度 跑通（見 `tests/test_live_sources.py`，需 `STOCKHEAT_LIVE_TEST=1`）。經濟日報（udn）內文為 JS 渲染、靜態抓取不完整，已停用，待改 headless。上線前仍請再確認各站 robots 與授權。
 2. **`is_repost` 永遠 False**：轉載判定需跨文件 SimHash 比對（SimHash 已算好存於 `raw_documents.simhash`，待接）。
 3. **綱要用 `create_all`**：正式環境應改 Alembic migration（docs/05 §6）。
-4. **個股字典僅 15 檔示範**：上線需匯入完整上市櫃清單。
-5. **情緒/辨識準確度**：v0 規則打底，未做領域模型與大規模評估。
+4. **個股字典已完整**：`data/tickers.csv` 含 1,970 檔上市櫃普通股（TWSE 1,079 + TPEx 891），
+   由 `python -m scripts.import_tickers` 自證交所官方 ISIN 清單匯入，人工別名自動保留。
+   ⚠️ 64% 個股為二字名（如「世界」「全國」與一般用詞同形）→ 辨識器對 ≤2 字名稱
+   要求鄰近股市上下文才足額計分（`processing/ticker_recognition.py`），以精準換取部分召回。
+5. **效能**：辨識為逐名 `str.find`，全字典約 2000 名/篇；大量文件時可改 Aho-Corasick。
+6. **情緒/辨識準確度**：v0 規則打底，未做領域模型與大規模評估。
 
 ## 8. 測試與品質
 

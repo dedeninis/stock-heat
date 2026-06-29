@@ -18,12 +18,18 @@ from dataclasses import dataclass
 
 from .dictionary import TickerDictionary, get_dictionary
 
-# 出現在代號鄰近、用於確認此為「股票代號」而非一般數字的上下文詞
-_CODE_CONTEXT = (
+# 股市上下文詞：用於確認代號（非一般數字）與短名稱（非同名常用詞）確為個股
+_STOCK_CONTEXT = (
     "股", "個股", "代號", "股價", "收盤", "開盤", "盤中", "漲", "跌",
-    "買", "賣", "投資", "持股", "成交", "目標價", "法說", "外資",
+    "漲停", "跌停", "大漲", "大跌", "走高", "走低", "重挫", "勁揚", "飆",
+    "買", "賣", "買超", "賣超", "投資", "持股", "成交", "目標價", "法說",
+    "外資", "投信", "自營", "法人", "上市", "上櫃", "掛牌", "營收", "獲利",
+    "財報", "除權", "除息", "董事會", "類股", "概念股", "權值", "盤勢",
 )
-_CODE_CONTEXT_WINDOW = 15
+_CONTEXT_WINDOW = 14
+# 同名常用詞風險高的短名稱長度門檻：≤ 此值的名稱／別名需有股市上下文才足額計分
+_SHORT_NAME_LEN = 2
+_SHORT_NAME_DISCOUNT = 0.6
 
 _SCORE_CODE_WITH_CONTEXT = 0.6
 _SCORE_CODE_BARE = 0.4
@@ -54,11 +60,11 @@ class RecognizedTicker:
     positions: list[int]
 
 
-def _has_code_context(text: str, start: int, end: int) -> bool:
-    lo = max(0, start - _CODE_CONTEXT_WINDOW)
-    hi = min(len(text), end + _CODE_CONTEXT_WINDOW)
+def _has_stock_context(text: str, start: int, end: int) -> bool:
+    lo = max(0, start - _CONTEXT_WINDOW)
+    hi = min(len(text), end + _CONTEXT_WINDOW)
     window = text[lo:hi]
-    return any(c in window for c in _CODE_CONTEXT)
+    return any(c in window for c in _STOCK_CONTEXT)
 
 
 def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
@@ -75,7 +81,7 @@ def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
         if before.isdigit() or after.isdigit():
             continue
         score = (_SCORE_CODE_WITH_CONTEXT
-                 if _has_code_context(text, m.start(), m.end())
+                 if _has_stock_context(text, m.start(), m.end())
                  else _SCORE_CODE_BARE)
         matches.append(_Match(code, m.start(), m.end(), score, "code"))
 
@@ -86,11 +92,16 @@ def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
         for surface, score, kind in surfaces:
             if not surface:
                 continue
+            length = len(surface)
             start = text.find(surface)
             while start != -1:
-                matches.append(
-                    _Match(entry.ticker, start, start + len(surface), score, kind)
-                )
+                eff = score
+                # 短名稱（如「世界」「全國」）易與一般用詞同形 →
+                # 缺乏鄰近股市上下文時打折，須有代號/重複/上下文等佐證才足額
+                if length <= _SHORT_NAME_LEN and not _has_stock_context(
+                        text, start, start + length):
+                    eff = round(score * _SHORT_NAME_DISCOUNT, 3)
+                matches.append(_Match(entry.ticker, start, start + length, eff, kind))
                 start = text.find(surface, start + 1)
     return matches
 
