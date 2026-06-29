@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import os
-import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -35,31 +34,32 @@ def _cors_origins() -> list[str]:
 
 
 def _maybe_seed() -> None:
-    """部署便利：設 STOCKHEAT_SEED_ON_START=1 且資料庫尚無溫度資料時，灌入示範資料。
+    """部署便利：設 STOCKHEAT_SEED_ON_START=1 且資料庫尚無溫度資料時，灌入輕量示範資料。
 
-    用於免費託管（檔案系統重啟即清空）讓 Pages demo 有畫面；不影響本機開發。
+    用輕量直寫（不跑辨識管線）→ 毫秒級、不佔 CPU，故不會因 GIL 阻塞事件迴圈而拖垮
+    healthcheck。用於免費託管（重啟即清空）讓 demo 有畫面；不影響本機開發。
+    真實資料請用 `python -m scripts.collect_once`。
     """
     if not os.environ.get("STOCKHEAT_SEED_ON_START"):
         return
     try:
         from ..db import models as m
+        from ..db.demo_seed import seed_demo_db
         from ..db.engine import init_db, session_scope
         init_db()
         with session_scope() as s:
             has_data = s.query(m.TickerHeatTimeseries).first() is not None
         if not has_data:
-            from scripts.seed_db import main as seed_main
-            logger.info("STOCKHEAT_SEED_ON_START: 灌入示範資料…")
-            seed_main()
+            logger.info("STOCKHEAT_SEED_ON_START: 灌入輕量示範資料…")
+            seed_demo_db()
     except Exception:  # noqa: BLE001 — 種子失敗不應擋住服務啟動
         logger.exception("seed-on-start failed")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    # 於背景執行：seeding 對全字典做辨識/計算較耗時，不可阻塞啟動，
-    # 否則服務在資料就緒前無法回應、healthcheck 會逾時。
-    threading.Thread(target=_maybe_seed, name="seed-on-start", daemon=True).start()
+    # 輕量直寫示範資料：毫秒級完成，可同步執行而不影響 healthcheck。
+    _maybe_seed()
     yield
 
 

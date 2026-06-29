@@ -101,6 +101,25 @@ def test_sql_store_reads_back(db_url):
     assert any(c[0] == "database" for c in store.health_components())
 
 
+def test_demo_seed_populates_and_idempotent(db_url):
+    from stock_heat.db.demo_seed import seed_demo_db
+
+    n = seed_demo_db(db_url)
+    assert n >= 1
+    with session_scope(db_url) as s:
+        ts = s.query(m.TickerHeatTimeseries).count()
+        docs = s.query(m.RawDocument).count()
+    assert ts > 0 and docs > 0
+
+    seed_demo_db(db_url)  # 再跑一次不應重複塞文件
+    with session_scope(db_url) as s:
+        assert s.query(m.RawDocument).count() == docs
+
+    store = SqlHeatStore(db_url)
+    assert store.latest_date() is not None
+    assert len(store.all_records()) >= 1
+
+
 def test_api_against_db_store(db_url):
     from fastapi.testclient import TestClient
 
