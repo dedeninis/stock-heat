@@ -1,1 +1,1 @@
-web: uvicorn stock_heat.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+web: python -m stock_heat

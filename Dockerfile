@@ -20,5 +20,5 @@ ENV STOCKHEAT_USE_DB=1 \
 
 EXPOSE 8000
 
-# 平台會以 $PORT 指定埠；本機預設 8000
-CMD ["sh", "-c", "uvicorn stock_heat.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# 進入點於 Python 內讀 $PORT 啟動 uvicorn（不靠 shell 展開，相容 Railway 等平台）
+CMD ["python", "-m", "stock_heat"]
