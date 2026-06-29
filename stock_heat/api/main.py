@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -56,7 +57,9 @@ def _maybe_seed() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    _maybe_seed()
+    # 於背景執行：seeding 對全字典做辨識/計算較耗時，不可阻塞啟動，
+    # 否則服務在資料就緒前無法回應、healthcheck 會逾時。
+    threading.Thread(target=_maybe_seed, name="seed-on-start", daemon=True).start()
     yield
 
 
