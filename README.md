@@ -24,7 +24,7 @@ Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL + TimescaleDB · 
 ## 開發狀態
 
 - [x] 7 份系統設計文件
-- [ ] 財經新聞擷取模組（進行中）
+- [x] 財經新聞擷取模組（`stock_heat/collectors/news/`，含測試）
 - [ ] 處理層（個股辨識 / 情緒）
 - [ ] 溫度計算
 - [ ] REST API
