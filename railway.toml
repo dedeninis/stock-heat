@@ -7,6 +7,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# 以 Python 進入點啟動，於程式內讀 $PORT（不靠 shell 展開）。
+# 明確指定以覆蓋 Railway 可能快取的舊 start command。
+startCommand = "python -m stock_heat"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
