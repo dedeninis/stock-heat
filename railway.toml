@@ -1,0 +1,13 @@
+# Railway 部署設定（https://railway.app）
+# 連結 GitHub repo 後，Railway 會依根目錄 Dockerfile 建置；此檔指定健康檢查等。
+# 服務環境變數請在 Railway 專案的 Variables 設定（Dockerfile 已內建合理預設）。
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

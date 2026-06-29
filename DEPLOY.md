@@ -4,31 +4,33 @@
 （Pages 只服務靜態檔），所以後端要部署到別的平台，再讓 Pages 前端指向它。
 
 ```
-[GitHub Pages]  index.html + config.js  ──fetch──▶  [Render/Railway]  FastAPI /api/v1
-   公開靜態前端                                          後端 API（已開 CORS）
+[GitHub Pages]  index.html + config.js  ──fetch──▶  [Railway]  FastAPI /api/v1
+   公開靜態前端                                       後端 API（已開 CORS）
 ```
 
-> ⚠️ 兩者都會**公開**。Pages 網站公開可瀏覽；私有 repo 用 Pages 需要付費方案
-> （Pro/Team）。資料為台股聲量、非敏感，但請自行確認可公開。
+> ⚠️ Pages 網站與後端 API **都會公開可存取**。資料為台股聲量、非敏感，但請自行確認可公開。
+> （repo 已設為 public，故 Pages 免付費即可用。）
 
 ---
 
-## 步驟 1 — 部署後端（擇一）
+## 步驟 1 — 部署後端到 Railway
 
-### 選項 A：Render（最簡單，有免費方案）
-1. 到 <https://render.com> 用 GitHub 登入，授權存取 `stock-heat` repo。
-2. New → Blueprint，選此 repo。Render 會讀根目錄的 `render.yaml` 自動建立服務。
-3. 等部署完成，取得網址，例如 `https://stock-heat-api.onrender.com`。
-4. 驗證：開 `https://stock-heat-api.onrender.com/api/v1/health` 應回 `{"status": ...}`。
+1. 到 <https://railway.app> 用 GitHub 登入，授權存取 `stock-heat` repo。
+2. **New Project → Deploy from GitHub repo →** 選 `stock-heat`。
+   Railway 會自動偵測根目錄 `Dockerfile`（並讀 `railway.toml` 的健康檢查設定）開始建置。
+3. 建置完成後，到該服務 **Settings → Networking → Generate Domain**，
+   取得公開網址，例如 `https://stock-heat-production.up.railway.app`。
+4. 驗證：開 `https://<你的網址>/api/v1/health` 應回 `{"status": ...}`，
+   或直接看 `https://<你的網址>/app/`（後端自帶的儀表板，同源版）。
 
-> 免費方案閒置會休眠、磁碟重啟即清空；已設 `STOCKHEAT_SEED_ON_START=1`，
-> 啟動且無資料時自動灌示範資料，確保畫面有東西。要真實資料見「步驟 4」。
+環境變數：`Dockerfile` 已內建合理預設（`STOCKHEAT_USE_DB=1`、`STOCKHEAT_SEED_ON_START=1`、
+`STOCKHEAT_CORS_ORIGINS=*`），通常不必另設。要收緊 CORS，可在 Railway 的
+**Variables** 把 `STOCKHEAT_CORS_ORIGINS` 設為 `https://<你的帳號>.github.io`。
 
-### 選項 B：任何支援 Docker 的平台
-根目錄已有 `Dockerfile`；建置並執行即可。平台會以 `$PORT` 指定埠。
-需要的環境變數見 `render.yaml`（`STOCKHEAT_USE_DB`、`STOCKHEAT_CORS_ORIGINS`…）。
+> Railway 免費額度用量計費；容器檔案系統重啟即清空，已設 `STOCKHEAT_SEED_ON_START=1`
+> 讓畫面有示範資料。要真實／持久資料見「步驟 4」。
 
-本機驗證容器：
+### 本機先驗證容器（選用）
 ```bash
 docker build -t stock-heat .
 docker run -p 8000:8000 stock-heat
@@ -40,7 +42,7 @@ docker run -p 8000:8000 stock-heat
 ## 步驟 2 — 設定 GitHub Pages 與後端網址
 
 1. repo → Settings → **Pages** → Build and deployment → Source 選 **GitHub Actions**。
-   （私有 repo 此功能需付費方案；或先將 repo 改為 public。）
+   （repo 已是 public，免付費即可用。）
 2. repo → Settings → Secrets and variables → **Actions** → **Variables** → New repository variable：
    - Name：`API_BASE`
    - Value：步驟 1 的後端網址（例 `https://stock-heat-api.onrender.com`，**結尾不要斜線**）
@@ -60,10 +62,13 @@ repo → Actions → **Deploy dashboard to Pages** → **Run workflow**。
 ## 步驟 4 —（選用）讓後端有真實資料
 
 示範資料是合成的。要真實新聞溫度，在後端跑一次擷取：
-- Render：Dashboard → 該服務 → **Shell**，執行 `python -m scripts.collect_once`。
-- 或設定 Render **Cron Job** 定時跑 `python -m scripts.collect_once`，讓資料持續更新。
-- 注意：免費方案無持久磁碟，重啟會清空；要長期保存請改用平台的 PostgreSQL，
-  把 `STOCKHEAT_DATABASE_URL` 設為其連線字串（模型不變，docs/05）。
+- Railway：專案 → 該服務 → 右上 **⋮ → Shell**（或 `railway run`），執行
+  `python -m scripts.collect_once`。
+- 持續更新：在 Railway 新增一個 **Cron** 服務（同 repo、同映像），排程
+  `python -m scripts.collect_once`。
+- 持久保存：容器重啟會清空 SQLite。可掛 Railway **Volume** 到 `/app/data`，
+  或新增 Railway **PostgreSQL**，把 `STOCKHEAT_DATABASE_URL` 設為其連線字串
+  （模型不變，docs/05）。
 
 ---
 
