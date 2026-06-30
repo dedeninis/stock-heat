@@ -30,6 +30,7 @@ class MentionSignal:
     published_at: datetime
     is_repost: bool = False
     engagement: int = 0  # 互動量（推/讚/回應…）；新聞通常為 0
+    contributes_sentiment: bool = True  # 搜尋趨勢等無情緒訊號設 False
 
 
 @dataclass
@@ -101,14 +102,17 @@ def compute_heat_scores(
     for ticker, sigs in by_ticker.items():
         raw = 0.0
         sent_num = 0.0
+        sent_den = 0.0  # 情緒分母只計「有情緒」的訊號（如新聞/社群），排除搜尋趨勢
         breakdown: dict[str, float] = defaultdict(float)
         for sig in sigs:
             c = _contribution(sig, reference_time, params)
             raw += c
-            sent_num += c * sig.sentiment
             breakdown[sig.source] += c
+            if sig.contributes_sentiment:
+                sent_num += c * sig.sentiment
+                sent_den += c
         raw_by_ticker[ticker] = raw
-        sent_by_ticker[ticker] = (sent_num / raw) if raw > 0 else 0.0
+        sent_by_ticker[ticker] = (sent_num / sent_den) if sent_den > 0 else 0.0
         breakdown_by_ticker[ticker] = {k: round(v, 4) for k, v in breakdown.items()}
         volume_by_ticker[ticker] = len(sigs)
 

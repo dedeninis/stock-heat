@@ -72,6 +72,12 @@ repo → Actions → **Deploy dashboard to Pages** → **Run workflow**。
 - 關閉自動掃描、改回合成示範資料：設 `STOCKHEAT_AUTO_SCAN=`（空）。
 - 手動立即掃一次：該服務 **⋮ → Shell** 執行 `python -m scripts.collect_once`。
 
+Google Trends 搜尋熱度（選配）：
+- 設 `STOCKHEAT_AUTO_TRENDS=1` 並安裝選配相依 `pip install pytrends` 後，每輪會查當日
+  熱門股的搜尋興趣，計入溫度並顯示於「搜尋趨勢」組成。
+- ⚠️ Google Trends 對**資料中心 IP（含 Railway）限流兇**，雲端常 429 → 預設關閉；
+  本機或住宅 IP 可正常運作（已驗證）。失敗時自動略過，不影響新聞/社群。
+
 持久保存：容器重啟會清空 SQLite（重啟後自動掃描會再補上）。要長期累積，
 可掛 Railway **Volume** 到 `/app/data`，或新增 **PostgreSQL** 並把
 `STOCKHEAT_DATABASE_URL` 設為其連線字串（模型不變，docs/05）。

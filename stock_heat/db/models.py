@@ -130,6 +130,16 @@ class TickerHeatTimeseries(Base):
     scoring_version: Mapped[str] = mapped_column(String(16), default="v0")
 
 
+class TickerTrend(Base):
+    """個股每日 Google Trends 搜尋興趣（0–100），併入溫度計算。"""
+
+    __tablename__ = "ticker_trends"
+
+    ticker: Mapped[str] = mapped_column(ForeignKey("tickers.ticker"), primary_key=True)
+    ts: Mapped[date] = mapped_column(Date, primary_key=True)
+    interest: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class HeatEvent(Base):
     __tablename__ = "heat_events"
 

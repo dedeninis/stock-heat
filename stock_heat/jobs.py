@@ -7,7 +7,7 @@ HTTP 抓取以 ``fetcher`` 注入，方便離線測試；正式執行使用預�
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -121,6 +121,55 @@ def collect_and_ingest(
         for src in load_ptt_sources(sources_path)
     )
     return total
+
+
+def collect_trends(
+    url: str | None = None,
+    *,
+    day: date | None = None,
+    top_n: int = 20,
+    window_hours: int = 48,
+    fetcher=None,
+    tickers_path: str = "data/tickers.csv",
+) -> int:
+    """查詢當日最熱門前 N 檔的 Google 搜尋興趣，upsert 到 ticker_trends。回傳寫入檔數。
+
+    僅查「已在新聞/社群活躍」的個股（避免同名詞噪音、且符合 Trends 查詢量限制）。
+    """
+    from sqlalchemy import func
+
+    from .collectors.trends import fetch_ticker_interest
+    target = day or datetime.now(timezone.utc).date()
+    start = datetime.combine(target, datetime.min.time()) - timedelta(hours=window_hours)
+    dictionary = get_dictionary(tickers_path)
+
+    with session_scope(url) as session:
+        rows = session.execute(
+            select(m.DocumentTickerMention.ticker, func.count().label("c"))
+            .join(m.ProcessedDocument,
+                  m.DocumentTickerMention.processed_id == m.ProcessedDocument.id)
+            .join(m.RawDocument, m.ProcessedDocument.raw_id == m.RawDocument.id)
+            .where(m.RawDocument.published_at >= start)
+            .group_by(m.DocumentTickerMention.ticker)
+            .order_by(func.count().desc()).limit(top_n)
+        ).all()
+    hot = [(tk, e.name) for tk, _ in rows if (e := dictionary.get(tk))]
+    if not hot:
+        return 0
+
+    interest = fetch_ticker_interest(hot, fetcher=fetcher)
+
+    written = 0
+    with session_scope(url) as session:
+        for ticker, value in interest.items():
+            row = session.get(m.TickerTrend, (ticker, target))
+            if row is None:
+                row = m.TickerTrend(ticker=ticker, ts=target)
+                session.add(row)
+            row.interest = int(value)
+            written += 1
+    logger.info("trends: 寫入 %d 檔搜尋興趣（%s）", written, target)
+    return written
 
 
 def recompute_today(

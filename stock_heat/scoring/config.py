@@ -18,6 +18,7 @@ class HeatParams(BaseModel):
     novelty_alpha: float = 0.5
     repost_weight: float = 1.0
     engagement_beta: float = 0.3  # 互動量加成係數；0 = 不計互動量
+    trends_weight: float = 0.8     # 搜尋趨勢訊號的來源權重（再乘 interest/100）
     normalize_percentile: float = 99.0
     min_confidence: float = 0.5
 

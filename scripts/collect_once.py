@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import date, datetime, timezone
 
 from stock_heat.db import models as m
@@ -34,6 +35,15 @@ def main() -> None:
     bootstrap()
     print("從真實來源擷取中…（config/sources.yaml 啟用的來源）")
     inserted = collect_and_ingest()
+
+    if os.environ.get("STOCKHEAT_AUTO_TRENDS"):
+        try:
+            from stock_heat.jobs import collect_trends
+            n = collect_trends(day=target)
+            print(f"Google Trends：寫入 {n} 檔搜尋興趣")
+        except Exception as e:  # noqa: BLE001 — Trends 失敗不影響主流程
+            print(f"Google Trends 略過（{type(e).__name__}）")
+
     tickers = recompute_today(day=target)
 
     with session_scope() as s:

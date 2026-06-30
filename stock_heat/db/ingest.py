@@ -113,6 +113,25 @@ def _signals_for_window(
     return signals
 
 
+def _trends_signals(
+    session: Session, day: date, reference: datetime, weight: float
+) -> list[MentionSignal]:
+    """把當日 ticker_trends 轉成趨勢訊號（計入溫度、不計情緒）。"""
+    out: list[MentionSignal] = []
+    rows = session.scalars(
+        select(m.TickerTrend).where(m.TickerTrend.ts == day,
+                                    m.TickerTrend.interest > 0)
+    ).all()
+    for tr in rows:
+        out.append(MentionSignal(
+            ticker=tr.ticker, source="trends.google",
+            source_weight=weight * (tr.interest / 100.0),
+            confidence=1.0, sentiment=0.0, published_at=reference,
+            is_repost=False, engagement=0, contributes_sentiment=False,
+        ))
+    return out
+
+
 def recompute_heat_for_day(
     session: Session,
     day: date,
@@ -125,6 +144,7 @@ def recompute_heat_for_day(
     cfg = config or ScoringConfig()
     reference = datetime.combine(day, time(23, 59, 59))
     signals = _signals_for_window(session, reference, window_hours)
+    signals += _trends_signals(session, day, reference, cfg.heat.trends_weight)
     scores = compute_heat_scores(signals, reference_time=reference, config=cfg)
 
     for th in scores:
