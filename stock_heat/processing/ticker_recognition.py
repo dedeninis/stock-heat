@@ -67,7 +67,14 @@ def _has_stock_context(text: str, start: int, end: int) -> bool:
     return any(c in window for c in _STOCK_CONTEXT)
 
 
-def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
+def _collect_matches(
+    text: str, dictionary: TickerDictionary, implicit_context: bool = False
+) -> list[_Match]:
+    """蒐集所有匹配。
+
+    ``implicit_context``：來源本身即股票專板（如 PTT Stock）時，整篇都是股市語境，
+    放寬「短名稱／裸代號需鄰近上下文」的限制，提升社群文的召回。
+    """
     matches: list[_Match] = []
 
     # 代號：只認字典裡有的 4 碼，且避免落在更長數字串中（如價格 12330）
@@ -81,7 +88,7 @@ def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
         if before.isdigit() or after.isdigit():
             continue
         score = (_SCORE_CODE_WITH_CONTEXT
-                 if _has_stock_context(text, m.start(), m.end())
+                 if implicit_context or _has_stock_context(text, m.start(), m.end())
                  else _SCORE_CODE_BARE)
         matches.append(_Match(code, m.start(), m.end(), score, "code"))
 
@@ -97,9 +104,9 @@ def _collect_matches(text: str, dictionary: TickerDictionary) -> list[_Match]:
             while start != -1:
                 eff = score
                 # 短名稱（如「世界」「全國」）易與一般用詞同形 →
-                # 缺乏鄰近股市上下文時打折，須有代號/重複/上下文等佐證才足額
-                if length <= _SHORT_NAME_LEN and not _has_stock_context(
-                        text, start, start + length):
+                # 缺乏鄰近股市上下文時打折（股票專板則隱含語境，不打折）
+                if (length <= _SHORT_NAME_LEN and not implicit_context
+                        and not _has_stock_context(text, start, start + length)):
                     eff = round(score * _SHORT_NAME_DISCOUNT, 3)
                 matches.append(_Match(entry.ticker, start, start + length, eff, kind))
                 start = text.find(surface, start + 1)
@@ -127,14 +134,18 @@ def _resolve_overlaps(matches: list[_Match]) -> list[_Match]:
 
 
 def recognize_tickers(
-    text: str, dictionary: TickerDictionary | None = None
+    text: str, dictionary: TickerDictionary | None = None,
+    *, implicit_context: bool = False,
 ) -> list[RecognizedTicker]:
-    """從文字辨識被提及的個股，回傳通過信心門檻者。"""
+    """從文字辨識被提及的個股，回傳通過信心門檻者。
+
+    ``implicit_context``：股票專板（如 PTT Stock）放寬短名稱/裸代號的上下文要求。
+    """
     dictionary = dictionary or get_dictionary()
     if not text:
         return []
 
-    accepted = _resolve_overlaps(_collect_matches(text, dictionary))
+    accepted = _resolve_overlaps(_collect_matches(text, dictionary, implicit_context))
 
     by_ticker: dict[str, list[_Match]] = {}
     for m in accepted:

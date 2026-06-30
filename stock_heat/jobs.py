@@ -11,9 +11,11 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 
+from .collectors.base import BaseCollector
 from .collectors.news import NewsCollector
 from .collectors.news.collector import Fetcher
 from .collectors.news.sources import load_news_sources
+from .collectors.ptt import PttCollector, load_ptt_sources
 from .db import models as m
 from .db.engine import init_db, session_scope
 from .db.ingest import ingest_documents, recompute_heat_for_day, seed_reference
@@ -32,11 +34,45 @@ def bootstrap(
     """建立綱要並 upsert 個股與來源主檔（啟動時呼叫一次）。"""
     init_db(url)
     dictionary = get_dictionary(tickers_path)
-    sources = {
+    sources: dict[str, tuple[str, str, float]] = {
         s.id: (s.name, "news", s.weight) for s in load_news_sources(sources_path)
     }
+    for s in load_ptt_sources(sources_path):
+        sources[s.id] = (s.name, "social", s.weight)
     with session_scope(url) as session:
         seed_reference(session, dictionary, sources)
+
+
+def _run_and_ingest(
+    src_id: str,
+    build_collector,
+    url: str | None,
+    dictionary: TickerDictionary,
+) -> int:
+    """共用：載入 seen-set → 建 collector → 跑一輪 → 寫入並記錄 collector_runs。"""
+    with session_scope(url) as session:
+        seen_ids = set(session.scalars(
+            select(m.RawDocument.external_id).where(m.RawDocument.source == src_id)
+        ).all())
+
+    collector: BaseCollector = build_collector(lambda n: n in seen_ids)
+    run = collector.run()
+
+    with session_scope(url) as session:
+        inserted = ingest_documents(session, run.documents, dictionary)
+        session.add(m.CollectorRun(
+            source=src_id, finished_at=datetime.now(timezone.utc),
+            discovered=run.discovered, fetched=run.fetched, errors=run.errors,
+            status=run.status,
+        ))
+        if run.fetched and not run.errors:
+            source_row = session.get(m.Source, src_id)
+            if source_row is not None:
+                source_row.last_success_at = datetime.now(timezone.utc)
+
+    logger.info("[%s] discovered=%d fetched=%d inserted=%d errors=%d",
+                src_id, run.discovered, run.fetched, inserted, run.errors)
+    return inserted
 
 
 def collect_source(
@@ -46,33 +82,25 @@ def collect_source(
     fetcher: Fetcher | None = None,
     dictionary: TickerDictionary | None = None,
 ) -> int:
-    """對單一來源跑一輪，去重後寫入 DB 並記錄 collector_runs。回傳新寫入篇數。"""
+    """對單一新聞來源跑一輪。回傳新寫入篇數。"""
     dictionary = dictionary or get_dictionary("data/tickers.csv")
+    return _run_and_ingest(
+        src.id, lambda seen: NewsCollector(src, fetcher=fetcher, seen=seen),
+        url, dictionary)
 
-    # 以 DB 內既有 external_id 作 seen-set，避免重抓
-    with session_scope(url) as session:
-        seen_ids = set(session.scalars(
-            select(m.RawDocument.external_id).where(m.RawDocument.source == src.id)
-        ).all())
 
-    collector = NewsCollector(src, fetcher=fetcher, seen=lambda n: n in seen_ids)
-    run = collector.run()
-
-    with session_scope(url) as session:
-        inserted = ingest_documents(session, run.documents, dictionary)
-        session.add(m.CollectorRun(
-            source=src.id, finished_at=datetime.now(timezone.utc),
-            discovered=run.discovered, fetched=run.fetched, errors=run.errors,
-            status=run.status,
-        ))
-        if run.fetched and not run.errors:
-            source_row = session.get(m.Source, src.id)
-            if source_row is not None:
-                source_row.last_success_at = datetime.now(timezone.utc)
-
-    logger.info("[%s] discovered=%d fetched=%d inserted=%d errors=%d",
-                src.id, run.discovered, run.fetched, inserted, run.errors)
-    return inserted
+def collect_ptt(
+    src,
+    url: str | None = None,
+    *,
+    fetcher: Fetcher | None = None,
+    dictionary: TickerDictionary | None = None,
+) -> int:
+    """對單一 PTT 看板來源跑一輪。回傳新寫入篇數。"""
+    dictionary = dictionary or get_dictionary("data/tickers.csv")
+    return _run_and_ingest(
+        src.id, lambda seen: PttCollector(src, fetcher=fetcher, seen=seen),
+        url, dictionary)
 
 
 def collect_and_ingest(
@@ -82,12 +110,17 @@ def collect_and_ingest(
     fetcher: Fetcher | None = None,
     dictionary: TickerDictionary | None = None,
 ) -> int:
-    """對所有啟用新聞來源各跑一輪，回傳本輪新寫入的文件總數。"""
+    """對所有啟用的新聞 + 社群來源各跑一輪，回傳本輪新寫入的文件總數。"""
     dictionary = dictionary or get_dictionary("data/tickers.csv")
-    return sum(
+    total = sum(
         collect_source(src, url, fetcher=fetcher, dictionary=dictionary)
         for src in load_news_sources(sources_path)
     )
+    total += sum(
+        collect_ptt(src, url, dictionary=dictionary)  # PTT 用自帶 fetcher（cookie/retry）
+        for src in load_ptt_sources(sources_path)
+    )
+    return total
 
 
 def recompute_today(

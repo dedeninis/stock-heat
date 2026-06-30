@@ -47,9 +47,11 @@ class ProcessingPipeline:
 
         doc_sentiment = analyze_sentiment(text)
 
+        # 股票專板（如 PTT Stock）整篇即股市語境，放寬辨識
+        implicit = bool(raw.raw_meta.get("implicit_stock_context"))
         mentions: list[TickerMention] = []
         if lang == "zh":
-            for rec in recognize_tickers(text, self.dictionary):
+            for rec in recognize_tickers(text, self.dictionary, implicit_context=implicit):
                 t_sent = analyze_ticker_sentiment(
                     text, self._surfaces(rec.ticker), doc_fallback=doc_sentiment
                 )

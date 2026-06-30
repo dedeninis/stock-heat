@@ -64,3 +64,19 @@ def test_two_char_name_with_stock_context():
     # 二字正式名（台塑 1301）在有股市上下文時仍可辨識
     res = _tickers("台塑今日股價走高，法人買超。")
     assert "1301" in res
+
+
+def test_implicit_context_relaxes_short_name():
+    # 無股市上下文的二字名，一般情況下不辨識…
+    text = "長榮今天怎麼了"
+    assert "2603" not in {r.ticker for r in recognize_tickers(text, DICT)}
+    # …但在股票專板（implicit_context）即可辨識
+    res = {r.ticker for r in recognize_tickers(text, DICT, implicit_context=True)}
+    assert "2603" in res
+
+
+def test_implicit_context_bare_code_full_score():
+    # 裸代號在股票專板給足額分數，單一提及即可過門檻
+    res = {r.ticker for r in recognize_tickers("2330 這檔要噴了", DICT,
+                                               implicit_context=True)}
+    assert "2330" in res

@@ -16,8 +16,9 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.base import BaseScheduler
 
 from .collectors.news.sources import load_news_sources
+from .collectors.ptt import load_ptt_sources
 from .config import Settings
-from .jobs import bootstrap, collect_source, recompute_today
+from .jobs import bootstrap, collect_ptt, collect_source, recompute_today
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,13 @@ def build_scheduler(
     for src in load_news_sources(settings.sources_path):
         sched.add_job(
             collect_source, "interval", seconds=src.interval, args=[src, url],
+            id=f"collect:{src.id}", max_instances=1, coalesce=True,
+            replace_existing=True,
+        )
+
+    for src in load_ptt_sources(settings.sources_path):
+        sched.add_job(
+            collect_ptt, "interval", seconds=src.interval, args=[src, url],
             id=f"collect:{src.id}", max_instances=1, coalesce=True,
             replace_existing=True,
         )

@@ -65,3 +65,15 @@ news:
     interval: 900
     enabled: true
     max_per_run: 6
+
+# 社群討論來源（公開、非 18+；低頻率低量、設 over18 cookie、帶重試）
+social:
+  - id: social.ptt_stock
+    name: PTT Stock
+    board: Stock
+    base_url: https://www.ptt.cc
+    weight: 0.7
+    interval: 900
+    enabled: true
+    max_per_run: 6
+    implicit_stock_context: true

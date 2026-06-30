@@ -17,6 +17,14 @@ def test_neutral_text_zero():
     assert analyze_sentiment("公司今日召開股東會，董事會成員出席。") == 0.0
 
 
+def test_social_slang_positive():
+    assert analyze_sentiment("這檔要噴了，上車賺爛！") > 0.3
+
+
+def test_social_slang_negative():
+    assert analyze_sentiment("慘住套房畢業，韭菜抬轎腰斬。") < -0.3
+
+
 def test_negation_reverses_polarity():
     pos = analyze_sentiment("法人看好後市。")
     neg = analyze_sentiment("法人不看好後市。")
