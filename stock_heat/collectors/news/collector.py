@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Iterable
 from typing import Protocol
 
@@ -22,6 +23,14 @@ from .parser import parse_article, parse_rss
 from .sources import NewsSource, load_news_sources
 
 logger = logging.getLogger(__name__)
+
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+
+
+def _strip_html(text: str) -> str:
+    """移除 RSS 摘要中的 HTML 標籤並正規化空白。"""
+    return _WS_RE.sub(" ", _TAG_RE.sub(" ", text or "")).strip()
 
 #: (url) -> html/xml text
 Fetcher = Callable[[str], str]
@@ -69,8 +78,10 @@ class NewsCollector(BaseCollector):
         self._fetch_text = fetcher or _default_fetcher()
         self._seen = seen or (lambda _u: False)
         self._mark_seen = mark_seen or (lambda _u: None)
-        # discover 期間自 RSS 取得的發布時間，供 fetch 補上（文章頁常缺日期）
+        # discover 期間自 RSS 取得的發布時間與摘要，供 fetch 補上
+        # （文章頁常缺日期；selector 失效時以摘要保住內文，個股辨識才不致落空）
         self._pub_dates: dict[str, object] = {}
+        self._summaries: dict[str, str] = {}
 
     # ------------------------------------------------------------------ discover
     def discover(self) -> list[str]:
@@ -85,8 +96,11 @@ class NewsCollector(BaseCollector):
         if self.config.rss:
             entries = parse_rss(raw)
             for e in entries:
+                norm = normalize_url(e.url)
                 if e.published_at is not None:
-                    self._pub_dates[normalize_url(e.url)] = e.published_at
+                    self._pub_dates[norm] = e.published_at
+                if e.summary:
+                    self._summaries[norm] = _strip_html(e.summary)
             links: Iterable[str] = (e.url for e in entries)
         else:
             # 列表頁：交由 parser 的通用連結抽取（此處先取 RSS 路徑為主）
@@ -119,19 +133,26 @@ class NewsCollector(BaseCollector):
         self._mark_seen(norm)
         # 文章頁常缺發布時間，退回 discover 階段自 RSS 取得的日期
         published_at = article.published_at or self._pub_dates.get(norm)
+        # selector 失效 / 內文過短時，以 RSS 摘要保底（個股辨識至少有標題＋摘要可用）
+        content = article.content
+        quality = article.quality
+        summary = self._summaries.get(norm, "")
+        if len(content) < 80 and len(summary) > len(content):
+            content = summary
+            quality = "partial"
         return RawDocument(
             source=self.source,
             source_type=self.source_type,
             external_id=norm,
             url=url,
             title=article.title,
-            content=article.content,
+            content=content,
             author=article.author,
             published_at=published_at,
-            content_quality=article.quality,
+            content_quality=quality,
             raw_meta={
                 "weight": self.config.weight,
-                "simhash": simhash(article.title + "\n" + article.content),
+                "simhash": simhash(article.title + "\n" + content),
             },
         )
 

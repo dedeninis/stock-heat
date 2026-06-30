@@ -114,3 +114,30 @@ def test_load_news_sources_filters_disabled(tmp_path):
 def test_news_source_requires_rss_or_list_url():
     with pytest.raises(ValueError):
         NewsSource(id="x", name="X")
+
+
+RSS_WITH_SUMMARY = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <item><title>台積電獲外資調升</title>
+    <link>https://news.example.com/a/9</link>
+    <description>&lt;p&gt;台積電（2330）今日獲外資調升目標價，股價走高。&lt;/p&gt;</description>
+    <pubDate>Mon, 29 Jun 2026 03:00:00 GMT</pubDate></item>
+</channel></rss>"""
+
+
+def test_rss_summary_fallback_when_article_body_empty():
+    src = make_source(rss="https://news.example.com/rss")
+
+    def fetch(url: str) -> str:
+        if url == src.rss:
+            return RSS_WITH_SUMMARY
+        # 文章頁無可用內文（模擬 JS 渲染 / selector 失效）
+        return "<html><head><title>台積電獲外資調升</title></head><body></body></html>"
+
+    result = NewsCollector(src, fetcher=fetch).run()
+    assert result.fetched == 1
+    doc = result.documents[0]
+    # 內文應退回 RSS 摘要（HTML 已去標籤），且仍可辨識個股
+    assert "台積電" in doc.content
+    assert "2330" in doc.content
+    assert doc.content_quality == "partial"

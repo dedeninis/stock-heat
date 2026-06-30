@@ -34,7 +34,34 @@ news:
     name: 經濟日報
     rss: https://money.udn.com/rssfeed/news/1001/5591?ch=money
     article_selector: "#article_body"
-    weight: 1.0
+    weight: 0.9
     interval: 300
-    enabled: false   # 內文為 JS 渲染，靜態抓取不完整，待改用 headless 後再啟用
+    enabled: true    # 已驗證可靜態抓取；selector 失效時 fallback 至 RSS 摘要
     max_per_run: 8
+
+  - id: news.ettoday
+    name: ETtoday財經
+    rss: https://feeds.feedburner.com/ettoday/finance
+    article_selector: "div.story"
+    weight: 0.7
+    interval: 600
+    enabled: true
+    max_per_run: 8
+
+  - id: news.yahoo
+    name: Yahoo股市
+    rss: https://tw.stock.yahoo.com/rss/url/d/e/N1.html
+    article_selector: "div.caas-body"
+    weight: 0.7
+    interval: 600
+    enabled: true
+    max_per_run: 8
+
+  - id: news.technews
+    name: TechNews科技新報
+    rss: https://technews.tw/feed/
+    article_selector: "article"
+    weight: 0.6
+    interval: 900
+    enabled: true
+    max_per_run: 6
