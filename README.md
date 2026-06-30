@@ -1,6 +1,10 @@
 # Stock Heat — 個股網路溫度系統
 
+### 🔥 [Live Demo](https://dedeninis.github.io/stock-heat/) — 每 30 分鐘自動掃描真實財經新聞、即時更新溫度榜
+
 [![CI](https://github.com/dedeninis/stock-heat/actions/workflows/ci.yml/badge.svg)](https://github.com/dedeninis/stock-heat/actions/workflows/ci.yml)
+
+> 前端：GitHub Pages ｜ 後端：Railway（FastAPI，自動掃描鉅亨網/中央社/自由時報）
 
 把分散在**新聞、論壇、社群、搜尋趨勢**上的討論熱度與情緒，量化成每檔個股每天（與盤中）的
 **網路溫度分數（Heat Score, 0–100）** 與 **情緒分數（-1 ~ +1）**，協助觀察哪些個股正在「升溫」、情緒偏多還偏空。
