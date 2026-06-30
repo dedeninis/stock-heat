@@ -14,6 +14,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import Base
@@ -58,10 +59,18 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def init_db(url: str | None = None) -> Engine:
-    """建立所有資料表（若不存在）。多執行緒下以鎖序列化，避免 create_all race。"""
+    """建立所有資料表（若不存在）。
+
+    程序內以鎖序列化；跨程序（如 web 與自動掃描子行程同時 init）create_all 的
+    「檢查再建立」並非原子，容忍「already exists」即可——最終狀態（表存在）一致。
+    """
     engine = get_engine(url)
     with _init_lock:
-        Base.metadata.create_all(engine, checkfirst=True)
+        try:
+            Base.metadata.create_all(engine, checkfirst=True)
+        except OperationalError as e:  # 跨程序 race：表已被另一方建立
+            if "already exists" not in str(e).lower():
+                raise
     return engine
 
 

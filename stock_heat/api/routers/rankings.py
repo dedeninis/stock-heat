@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from ..deps import get_store
 from ..schemas import (
@@ -36,7 +36,8 @@ def heat_ranking(
 ) -> RankingResponse:
     target = day or store.latest_date()
     if target is None:
-        raise HTTPException(404, detail="無可用資料")
+        # 尚無資料（如部署後首輪掃描尚未完成）：回空清單而非 404，前端顯示「無資料」
+        return RankingResponse(date=day or date.today(), order=order, items=[])
 
     rows = []
     for rec in store.all_records():
@@ -64,7 +65,7 @@ def surging_ranking(
 ) -> SurgeResponse:
     target = day or store.latest_date()
     if target is None:
-        raise HTTPException(404, detail="無可用資料")
+        return SurgeResponse(date=day or date.today(), items=[])
 
     items = []
     for rec in store.all_records():

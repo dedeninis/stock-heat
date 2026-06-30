@@ -58,8 +58,16 @@ def _maybe_seed() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    # 輕量直寫示範資料：毫秒級完成，可同步執行而不影響 healthcheck。
-    _maybe_seed()
+    from ..autoscan import enabled as autoscan_enabled
+    from ..autoscan import start_autoscan
+
+    if autoscan_enabled():
+        # 自動掃描真實新聞：子行程週期擷取，啟動即先掃一次（不阻塞、不佔 GIL）。
+        logger.info("啟用自動掃描真實新聞（STOCKHEAT_AUTO_SCAN）")
+        start_autoscan()
+    else:
+        # 否則灌輕量合成示範資料，毫秒級、不影響 healthcheck。
+        _maybe_seed()
     yield
 
 

@@ -59,16 +59,22 @@ repo → Actions → **Deploy dashboard to Pages** → **Run workflow**。
 
 ---
 
-## 步驟 4 —（選用）讓後端有真實資料
+## 步驟 4 — 真實新聞（預設已自動掃描）
 
-示範資料是合成的。要真實新聞溫度，在後端跑一次擷取：
-- Railway：專案 → 該服務 → 右上 **⋮ → Shell**（或 `railway run`），執行
-  `python -m scripts.collect_once`。
-- 持續更新：在 Railway 新增一個 **Cron** 服務（同 repo、同映像），排程
-  `python -m scripts.collect_once`。
-- 持久保存：容器重啟會清空 SQLite。可掛 Railway **Volume** 到 `/app/data`，
-  或新增 Railway **PostgreSQL**，把 `STOCKHEAT_DATABASE_URL` 設為其連線字串
-  （模型不變，docs/05）。
+後端**預設開啟自動掃描**（`Dockerfile` 內 `STOCKHEAT_AUTO_SCAN=1`）：
+- 啟動即先掃一次、之後每 30 分鐘（`STOCKHEAT_SCAN_INTERVAL` 秒）自動擷取
+  鉅亨網/中央社/自由時報真新聞 → 處理 → 算溫度 → 寫入同一 DB。
+- 擷取以**子行程**執行（不阻塞 API、不佔事件迴圈），web 服務全程可回應。
+- 部署後首輪掃描約需數十秒；完成前儀表板顯示「無資料」，完成後即為真實榜單。
+
+調整：
+- 改頻率：Railway **Variables** 設 `STOCKHEAT_SCAN_INTERVAL`（秒）。
+- 關閉自動掃描、改回合成示範資料：設 `STOCKHEAT_AUTO_SCAN=`（空）。
+- 手動立即掃一次：該服務 **⋮ → Shell** 執行 `python -m scripts.collect_once`。
+
+持久保存：容器重啟會清空 SQLite（重啟後自動掃描會再補上）。要長期累積，
+可掛 Railway **Volume** 到 `/app/data`，或新增 **PostgreSQL** 並把
+`STOCKHEAT_DATABASE_URL` 設為其連線字串（模型不變，docs/05）。
 
 ---
 
