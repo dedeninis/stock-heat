@@ -18,6 +18,7 @@ class HeatPoint:
     sentiment: float
     volume: int
     heat_velocity: float
+    source_breakdown: dict = field(default_factory=dict)  # source_id -> 貢獻值
 
 
 @dataclass

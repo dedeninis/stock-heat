@@ -29,6 +29,7 @@ class MentionSignal:
     sentiment: float
     published_at: datetime
     is_repost: bool = False
+    engagement: int = 0  # 互動量（推/讚/回應…）；新聞通常為 0
 
 
 @dataclass
@@ -51,10 +52,13 @@ def decay(age_hours: float, lam: float) -> float:
 def _contribution(sig: MentionSignal, ref: datetime, params: HeatParams) -> float:
     age_hours = (ref - sig.published_at).total_seconds() / 3600.0
     novelty = 0.0 if sig.is_repost else 1.0
+    # 互動量加成：推爆的社群貼文比乏人問津者更熱；取 log 壓縮、新聞 engagement=0 → 不受影響
+    engagement_factor = 1.0 + params.engagement_beta * math.log1p(max(0, sig.engagement))
     return (sig.source_weight
             * sig.confidence
             * decay(age_hours, params.decay_lambda)
-            * (1.0 + params.novelty_alpha * novelty))
+            * (1.0 + params.novelty_alpha * novelty)
+            * engagement_factor)
 
 
 def _percentile(values: list[float], pct: float) -> float:

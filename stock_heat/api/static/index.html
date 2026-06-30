@@ -211,10 +211,30 @@ async function loadDetail(ticker) {
           <div class="value">${sum.heat_velocity>=0?"+":""}${(sum.heat_velocity*100).toFixed(0)}%</div></div>
         <div class="metric"><div class="label">聲量</div><div class="value">${sum.volume}</div></div>
       </div>
+      ${renderBreakdown(sum.source_breakdown)}
       <div class="chart-wrap">${lineChart(ts.points)}</div>
       <h2 style="margin-top:18px">相關新聞</h2>
       ${renderNews(docs.items)}`;
   } catch (e) { area.innerHTML = `<div class="empty">載入失敗：${e.message}</div>`; }
+}
+
+const SRC_COLORS = { "新聞":"#4aa8ff", "論壇":"#ffb454", "社群":"#ff5a52",
+                     "搜尋趨勢":"#7a8696", "公告":"#9b8cff", "PTT":"#5dca8f" };
+function renderBreakdown(items) {
+  if (!items || !items.length) return "";
+  const bar = items.map(s => {
+    const col = SRC_COLORS[s.label] || "#7a8696";
+    return `<div title="${s.label} ${s.pct}%" style="width:${s.pct}%;background:${col}"></div>`;
+  }).join("");
+  const legend = items.map(s => {
+    const col = SRC_COLORS[s.label] || "#7a8696";
+    return `<span style="color:var(--muted)"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:4px"></span>${s.label} ${s.pct}%</span>`;
+  }).join("");
+  return `<div style="margin-top:4px">
+    <div style="color:var(--muted);font-size:12px;margin-bottom:4px">溫度組成</div>
+    <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel-2)">${bar}</div>
+    <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;flex-wrap:wrap">${legend}</div>
+  </div>`;
 }
 
 function lineChart(points) {

@@ -39,7 +39,8 @@ class SqlHeatStore:
     def _build_record(self, s: Session, ticker_row: m.Ticker) -> TickerRecord | None:
         points = [
             HeatPoint(ts=r.ts, heat_score=r.heat_score, sentiment=r.sentiment,
-                      volume=r.volume, heat_velocity=r.heat_velocity)
+                      volume=r.volume, heat_velocity=r.heat_velocity,
+                      source_breakdown=r.source_breakdown or {})
             for r in s.scalars(
                 select(m.TickerHeatTimeseries)
                 .where(m.TickerHeatTimeseries.ticker == ticker_row.ticker,

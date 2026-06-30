@@ -17,6 +17,7 @@ class HeatParams(BaseModel):
     half_life_hours: float = 24.0
     novelty_alpha: float = 0.5
     repost_weight: float = 1.0
+    engagement_beta: float = 0.3  # 互動量加成係數；0 = 不計互動量
     normalize_percentile: float = 99.0
     min_confidence: float = 0.5
 

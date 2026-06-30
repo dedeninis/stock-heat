@@ -75,6 +75,7 @@ class RawDocument(Base):
     # 以字串存：SimHash 為 64-bit 無號值，超出 SQLite 有號 INTEGER 範圍
     simhash: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     content_quality: Mapped[str] = mapped_column(String(16), default="full")
+    engagement: Mapped[int] = mapped_column(Integer, default=0)  # 互動量（社群推/讚/回應）
     raw_meta: Mapped[dict] = mapped_column(JSON, default=dict)
 
     processed: Mapped["ProcessedDocument | None"] = relationship(

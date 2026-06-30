@@ -8,10 +8,12 @@ from stock_heat.scoring import MentionSignal, ScoringConfig, compute_heat_scores
 NOW = datetime(2026, 6, 29, 12, 0, tzinfo=timezone.utc)
 
 
-def sig(ticker, *, weight=1.0, conf=0.8, sent=0.0, age_h=0.0, repost=False, source="news.a"):
+def sig(ticker, *, weight=1.0, conf=0.8, sent=0.0, age_h=0.0, repost=False,
+        source="news.a", engagement=0):
     return MentionSignal(
         ticker=ticker, source=source, source_weight=weight, confidence=conf,
         sentiment=sent, published_at=NOW - timedelta(hours=age_h), is_repost=repost,
+        engagement=engagement,
     )
 
 
@@ -72,6 +74,19 @@ def test_source_breakdown_recorded():
     signals = [sig("2330", source="news.a"), sig("2330", source="ptt.stock", weight=0.7)]
     res = compute_heat_scores(signals, reference_time=NOW)[0]
     assert set(res.source_breakdown.keys()) == {"news.a", "ptt.stock"}
+
+
+def test_engagement_increases_contribution():
+    plain = compute_heat_scores([sig("2330")], reference_time=NOW)[0]
+    hot = compute_heat_scores([sig("2330", engagement=1000)], reference_time=NOW)[0]
+    assert hot.raw_heat > plain.raw_heat   # 互動量加成
+
+
+def test_zero_engagement_unchanged():
+    # 新聞（engagement=0）不受互動量加成影響 → 與舊行為一致
+    r = compute_heat_scores([sig("2330", engagement=0)], reference_time=NOW)[0]
+    expected = 1.0 * 0.8 * 1.0 * (1 + 0.5 * 1.0)  # sw·conf·decay·(1+α)
+    assert r.raw_heat == pytest.approx(expected, rel=1e-6)
 
 
 def test_custom_config_min_confidence():

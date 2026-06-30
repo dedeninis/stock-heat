@@ -72,8 +72,11 @@ def _build_record(ticker: str, profile: tuple) -> TickerRecord:
         velocities.append(v)
         sentiment = round(max(-1.0, min(1.0, mood + rng.uniform(-0.2, 0.2))), 3)
         volume = max(1, int(h / 6) + rng.randint(0, 3))
+        # 合成溫度組成（示範資料皆為新聞來源）
+        breakdown = {"news.cnyes": round(h * 0.6, 2), "news.cna": round(h * 0.4, 2)}
         points.append(HeatPoint(ts=day, heat_score=h, sentiment=sentiment,
-                                volume=volume, heat_velocity=v))
+                                volume=volume, heat_velocity=v,
+                                source_breakdown=breakdown))
 
     surged = is_surge(velocities[-1], velocities[:-1])
 

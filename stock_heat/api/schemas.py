@@ -42,6 +42,12 @@ class TrendPoint(BaseModel):
     heat_score: float
 
 
+class SourceShare(BaseModel):
+    type: str       # news | forum | social | trends | disclosure
+    label: str      # 顯示名稱（新聞 / 論壇 / 社群…）
+    pct: float      # 佔當前溫度的百分比
+
+
 class TickerSummary(BaseModel):
     ticker: str
     name: str
@@ -53,6 +59,7 @@ class TickerSummary(BaseModel):
     volume: int
     is_surge: bool
     trend_7d: list[TrendPoint]
+    source_breakdown: list[SourceShare] = []  # 溫度組成（依來源類型）
 
 
 class TimeseriesPoint(BaseModel):

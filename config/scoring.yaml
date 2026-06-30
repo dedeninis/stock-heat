@@ -5,6 +5,7 @@ heat:
   half_life_hours: 24       # 時間衰減半衰期；λ = ln2 / half_life
   novelty_alpha: 0.5        # 原創加成 α；轉載以 novelty=0 計入（折扣）
   repost_weight: 1.0        # 轉載相對權重（保留欄位，目前以 novelty 控制）
+  engagement_beta: 0.3      # 互動量加成；contribution ×(1 + β·ln(1+互動量))，新聞=0 不受影響
   normalize_percentile: 99  # 正規化分母取當期 raw 分布的百分位
   min_confidence: 0.5       # 納入計算的最低辨識信心
 

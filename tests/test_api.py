@@ -70,6 +70,15 @@ def test_ticker_summary_404(client):
     assert r.status_code == 404
 
 
+def test_ticker_summary_source_breakdown(client):
+    body = client.get("/api/v1/tickers/2330").json()
+    bd = body["source_breakdown"]
+    assert isinstance(bd, list) and len(bd) >= 1
+    assert all({"type", "label", "pct"} <= set(s) for s in bd)
+    assert abs(sum(s["pct"] for s in bd) - 100.0) < 0.5   # 百分比加總約 100
+    assert any(s["type"] == "news" and s["label"] == "新聞" for s in bd)
+
+
 def test_timeseries_full_and_filtered(client):
     full = client.get("/api/v1/tickers/2330/timeseries").json()["points"]
     assert len(full) == 14

@@ -61,7 +61,9 @@ def ingest_documents(
             url=raw.url, title=raw.title, content=raw.content, author=raw.author,
             published_at=raw.published_at,
             simhash=(str(sh) if (sh := raw.raw_meta.get("simhash")) is not None else None),
-            content_quality=raw.content_quality, raw_meta=raw.raw_meta,
+            content_quality=raw.content_quality,
+            engagement=int(raw.raw_meta.get("engagement", 0) or 0),
+            raw_meta=raw.raw_meta,
         )
         session.add(row)
         session.flush()  # 取得 row.id
@@ -106,6 +108,7 @@ def _signals_for_window(
             source_weight=weights.get(raw.source, 1.0),
             confidence=mention.confidence, sentiment=mention.ticker_sentiment,
             published_at=raw.published_at, is_repost=proc.is_repost,
+            engagement=raw.engagement or 0,
         ))
     return signals
 

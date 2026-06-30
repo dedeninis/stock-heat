@@ -38,7 +38,8 @@ def seed_demo_db(url: str | None = None) -> int:
                     s.add(m.TickerHeatTimeseries(
                         ticker=rec.ticker, ts=p.ts, granularity="daily",
                         volume=p.volume, heat_score=p.heat_score,
-                        sentiment=p.sentiment, heat_velocity=p.heat_velocity))
+                        sentiment=p.sentiment, heat_velocity=p.heat_velocity,
+                        source_breakdown=p.source_breakdown or {}))
 
             for d in rec.documents:
                 exists = s.query(m.RawDocument.id).filter_by(
