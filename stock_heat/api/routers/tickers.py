@@ -7,10 +7,13 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ...processing.dictionary import get_dictionary
 from ..deps import get_store
+from ..quote import get_quote
 from ..schemas import (
     DocumentItem,
     DocumentsResponse,
+    QuoteResponse,
     SourceShare,
     TickerSummary,
     TimeseriesPoint,
@@ -18,6 +21,8 @@ from ..schemas import (
     TrendPoint,
 )
 from ..store import HeatStore, TickerRecord
+
+_WANTGOO = "https://www.wantgoo.com/stock/{ticker}/technical-chart"
 
 router = APIRouter(prefix="/api/v1/tickers", tags=["tickers"])
 
@@ -65,6 +70,17 @@ def ticker_summary(ticker: str, store: HeatStore = Depends(get_store)) -> Ticker
         is_surge=rec.is_surge, trend_7d=trend,
         source_breakdown=_breakdown(latest.source_breakdown),
     )
+
+
+@router.get("/{ticker}/quote", response_model=QuoteResponse)
+def ticker_quote(ticker: str) -> QuoteResponse:
+    """即時/收盤行情（代理 TWSE MIS）。不依賴溫度資料，未知個股仍嘗試查詢。"""
+    entry = get_dictionary("data/tickers.csv").get(ticker)
+    market = entry.market if entry else "TWSE"
+    name = entry.name if entry else ticker
+    q = get_quote(ticker, market)
+    return QuoteResponse(ticker=ticker, name=name, market=market,
+                         chart_url=_WANTGOO.format(ticker=ticker), **q)
 
 
 @router.get("/{ticker}/timeseries", response_model=TimeseriesResponse)

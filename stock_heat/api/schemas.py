@@ -91,6 +91,23 @@ class DocumentsResponse(BaseModel):
     items: list[DocumentItem]
 
 
+class QuoteResponse(BaseModel):
+    ticker: str
+    name: str
+    market: str
+    available: bool
+    price: float | None = None
+    prev_close: float | None = None
+    change: float | None = None
+    change_pct: float | None = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    volume: int | None = None
+    time: str | None = None
+    chart_url: str
+
+
 class SearchItem(BaseModel):
     ticker: str
     name: str

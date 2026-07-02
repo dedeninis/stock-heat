@@ -72,6 +72,9 @@
   .news a:hover { color: var(--accent); }
   .news .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
   .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+  .quote-box { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+               padding: 8px 12px; margin: 6px 0 2px; background: var(--panel-2);
+               border: 1px solid var(--line); border-radius: 8px; }
   .chart-wrap { margin-top: 4px; }
   .footnote { color: var(--muted); font-size: 11px; padding: 0 22px 22px; }
   text { fill: var(--muted); font-size: 10px; }
@@ -203,6 +206,7 @@ async function loadDetail(ticker) {
         <span class="sub" style="color:var(--muted)">${sum.industry}</span>
         ${sum.is_surge ? '<span class="surge-flag">⚡異常升溫</span>' : ''}
       </div>
+      <div id="quoteBox" class="quote-box"><span style="color:var(--muted);font-size:12px">載入行情…</span></div>
       <div class="detail-metrics">
         <div class="metric"><div class="label">網路溫度</div>
           <div class="value" style="color:${heatColor(sum.heat_score)}">${sum.heat_score.toFixed(1)}</div></div>
@@ -215,7 +219,35 @@ async function loadDetail(ticker) {
       <div class="chart-wrap">${lineChart(ts.points)}</div>
       <h2 style="margin-top:18px">相關新聞</h2>
       ${renderNews(docs.items)}`;
+    loadQuote(ticker);   // 非阻塞：行情另外抓，抓到再填入
   } catch (e) { area.innerHTML = `<div class="empty">載入失敗：${e.message}</div>`; }
+}
+
+async function loadQuote(ticker) {
+  const box = document.getElementById("quoteBox");
+  if (!box) return;
+  try {
+    const q = await j(`${API}/tickers/${ticker}/quote`);
+    const link = `<a href="${q.chart_url}" target="_blank" rel="noopener"
+      style="color:var(--accent);text-decoration:none;font-size:12px">技術線圖 ↗</a>`;
+    if (!q.available) {
+      box.innerHTML = `<span style="color:var(--muted);font-size:13px">行情暫無</span>
+        <span style="margin-left:auto">${link}</span>`;
+      return;
+    }
+    // 台股配色：漲紅跌綠
+    const up = (q.change ?? 0) > 0, dn = (q.change ?? 0) < 0;
+    const col = up ? "#ff5a52" : dn ? "#3fb56b" : "var(--muted)";
+    const arrow = up ? "▲" : dn ? "▼" : "－";
+    const sign = up ? "+" : "";
+    box.innerHTML = `
+      <span style="font-size:26px;font-weight:600;color:${col};font-variant-numeric:tabular-nums">${q.price?.toFixed(2)}</span>
+      <span style="color:${col};font-size:14px">${arrow} ${sign}${(q.change??0).toFixed(2)} (${sign}${(q.change_pct??0).toFixed(2)}%)</span>
+      <span style="color:var(--muted);font-size:11px">昨收 ${q.prev_close?.toFixed(2) ?? "-"} · 量 ${q.volume ?? "-"} · ${q.time ?? ""}</span>
+      <span style="margin-left:auto">${link}</span>`;
+  } catch {
+    box.innerHTML = `<span style="color:var(--muted);font-size:13px">行情暫無</span>`;
+  }
 }
 
 const SRC_COLORS = { "新聞":"#4aa8ff", "論壇":"#ffb454", "社群":"#ff5a52",
